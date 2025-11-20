@@ -1,0 +1,21 @@
+trigger:
+- main   # branch to trigger pipeline
+
+pool:
+  name: 'Java_Deployment'   
+steps:
+# Step 1: Checkout code
+- checkout: self
+
+# Step 2: Build with Maven
+- task: Maven@3
+  inputs:
+    mavenPomFile: 'pom.xml'
+    goals: 'clean package'
+    options: '-DskipTests'
+
+# Step 3: Run the app directly on the self-hosted server
+- script: |
+    cd target
+    nohup java -jar *.jar > app.log 2>&1 &
+  displayName: 'Run Java App'

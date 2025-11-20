@@ -1,8 +1,10 @@
 trigger:
-- main   # branch to trigger pipeline
+- main   # adjust branch as needed
 
+# Build stage: Microsoft-hosted agent
 pool:
-  name: 'Java_Deployment'   
+  vmImage: 'ubuntu-latest'
+
 steps:
 # Step 1: Checkout code
 - checkout: self
@@ -14,8 +16,26 @@ steps:
     goals: 'clean package'
     options: '-DskipTests'
 
-# Step 3: Run the app directly on the self-hosted server
-- script: |
-    cd target
-    nohup java -jar *.jar > app.log 2>&1 &
-  displayName: 'Run Java App'
+# Step 3: Publish build artifact
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: 'target/*.jar'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
+
+# Step 4: Copy artifact to remote Linux server via SSH
+- task: CopyFilesOverSSH@0
+  inputs:
+    sshEndpoint: 'Java_YAML'   # 👈 your service connection name
+    sourceFolder: '$(Pipeline.Workspace)/drop'
+    contents: '*.jar'
+    targetFolder: '/home/itadmin/javaapp'
+
+# Step 5: Run the app on the remote server
+- task: SSH@0
+  inputs:
+    sshEndpoint: 'Java_YAML'
+    runOptions: 'inline'
+    inline: |
+      cd /home/itadmin/javaapp
+      nohup java -jar *.jar > app.log 2>&1 &

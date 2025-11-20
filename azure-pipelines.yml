@@ -1,39 +1,51 @@
 trigger:
-- main
+- main   # adjust branch name if needed
 
 pool:
   vmImage: 'ubuntu-latest'
 
-steps:
-- checkout: self
+stages:
+- stage: Build
+  displayName: "Build Java App"
+  jobs:
+  - job: BuildJob
+    steps:
+    - checkout: self
 
-# Build with Maven (point to JtProject/pom.xml)
-- task: Maven@3
-  inputs:
-    mavenPomFile: 'JtProject/pom.xml'   # 👈 correct path
-    goals: 'clean package'
-    options: '-DskipTests'
+    # Build with Maven (pom.xml inside JtProject)
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'JtProject/pom.xml'
+        goals: 'clean package'
+        options: '-DskipTests'
+        workingDirectory: 'JtProject'
 
-# Publish artifact
-- task: PublishBuildArtifacts@1
-  inputs:
-    PathtoPublish: 'JtProject/target/*.jar'   # 👈 target folder inside JtProject
-    ArtifactName: 'drop'
-    publishLocation: 'Container'
+    # Publish artifact (the JAR from JtProject/target)
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: 'JtProject/target'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
 
-# Copy artifact to remote Linux server
-- task: CopyFilesOverSSH@0
-  inputs:
-    sshEndpoint: 'Java_YAML'   # 👈 your service connection name
-    sourceFolder: '$(Pipeline.Workspace)/drop'
-    contents: '*.jar'
-    targetFolder: '/home/itadmin/javaapp'
+- stage: Deploy
+  displayName: "Deploy to Linux Server"
+  dependsOn: Build
+  jobs:
+  - job: DeployJob
+    steps:
+    # Copy artifact to remote server
+    - task: CopyFilesOverSSH@0
+      inputs:
+        sshEndpoint: 'Java_YAML'   # 👈 your service connection name
+        sourceFolder: '$(Pipeline.Workspace)/drop'
+        contents: '*.jar'
+        targetFolder: '/home/itadmin/javaapp'
 
-# Run app on remote server
-- task: SSH@0
-  inputs:
-    sshEndpoint: 'Java_YAML'
-    runOptions: 'inline'
-    inline: |
-      cd /home/itadmin/javaapp
-      nohup java -jar *.jar > app.log 2>&1 &
+    # Run the app on the remote server
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'Java_YAML'
+        runOptions: 'inline'
+        inline: |
+          cd /home/itadmin/javaapp
+          nohup java -jar *.jar > app.log 2>&1 &

@@ -1,18 +1,17 @@
 trigger:
-- main   # adjust branch name if needed
-
-pool:
-  vmImage: 'ubuntu-latest'
+- main
 
 stages:
 - stage: Build
   displayName: "Build Java App"
   jobs:
   - job: BuildJob
+    pool:
+      vmImage: 'ubuntu-latest'   # Microsoft-hosted agent
     steps:
     - checkout: self
 
-    # Build with Maven (pom.xml inside JtProject)
+    # Build with Maven
     - task: Maven@3
       inputs:
         mavenPomFile: 'JtProject/pom.xml'
@@ -20,36 +19,40 @@ stages:
         options: '-DskipTests'
         workingDirectory: 'JtProject'
 
-    # Publish artifact (the JAR from JtProject/target)
+    # Publish artifact
     - task: PublishPipelineArtifact@1
       inputs:
         targetPath: 'JtProject/target'
         artifact: 'drop'
 
 - stage: Deploy
-  displayName: "Deploy to Linux Server"
+  displayName: "Deploy to Remote Server"
   dependsOn: Build
   jobs:
   - job: DeployJob
+    pool:
+      name: 'Default'   # 👈 your self-hosted agent pool name
+      demands:
+      - agent.os -equals Linux
     steps:
-    # ✅ Download artifact FIRST
+    # Download artifact onto the self-hosted agent
     - task: DownloadPipelineArtifact@2
       inputs:
         artifact: 'drop'
         path: '$(Pipeline.Workspace)/drop'
 
-    # ✅ Then copy files over SSH
+    # Copy files to remote server via SSH
     - task: CopyFilesOverSSH@0
       inputs:
-        sshEndpoint: 'Java_YAML'   # 👈 your service connection name
+        sshEndpoint: 'Java_Development'   # 👈 your SSH service connection name
         sourceFolder: '$(Pipeline.Workspace)/drop'
         contents: '*.jar'
         targetFolder: '/home/itadmin/javaapp'
 
-    # ✅ Finally run the app on the remote server
+    # Run the app remotely
     - task: SSH@0
       inputs:
-        sshEndpoint: 'Java_YAML'
+        sshEndpoint: 'Java_Development'
         runOptions: 'inline'
         inline: |
           cd /home/itadmin/javaapp

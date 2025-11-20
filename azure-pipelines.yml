@@ -31,7 +31,7 @@ stages:
   jobs:
   - job: DeployJob
     pool:
-      name: 'Default'   # 👈 your self-hosted agent pool name
+      name: 'Java_Development'   # 👈 your self-hosted agent pool name
       demands:
       - agent.os -equals Linux
     steps:

@@ -27,7 +27,7 @@ stages:
   jobs:
   - job: DeployJob
     pool:
-      name: 'Default'   # 👈 your self-hosted agent pool
+      name: 'Java_Deployment'   # 👈 your self-hosted agent pool
     steps:
     - task: DownloadPipelineArtifact@2
       inputs:

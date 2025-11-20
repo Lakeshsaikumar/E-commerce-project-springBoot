@@ -21,11 +21,10 @@ stages:
         workingDirectory: 'JtProject'
 
     # Publish artifact (the JAR from JtProject/target)
-    - task: PublishBuildArtifacts@1
+    - task: PublishPipelineArtifact@1
       inputs:
-        PathtoPublish: 'JtProject/target'
-        ArtifactName: 'drop'
-        publishLocation: 'Container'
+        targetPath: 'JtProject/target'
+        artifact: 'drop'
 
 - stage: Deploy
   displayName: "Deploy to Linux Server"
@@ -33,7 +32,13 @@ stages:
   jobs:
   - job: DeployJob
     steps:
-    # Copy artifact to remote server
+    # ✅ Download artifact FIRST
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        artifact: 'drop'
+        path: '$(Pipeline.Workspace)/drop'
+
+    # ✅ Then copy files over SSH
     - task: CopyFilesOverSSH@0
       inputs:
         sshEndpoint: 'Java_YAML'   # 👈 your service connection name
@@ -41,11 +46,12 @@ stages:
         contents: '*.jar'
         targetFolder: '/home/itadmin/javaapp'
 
-    # Run the app on the remote server
+    # ✅ Finally run the app on the remote server
     - task: SSH@0
       inputs:
         sshEndpoint: 'Java_YAML'
         runOptions: 'inline'
         inline: |
           cd /home/itadmin/javaapp
+          pkill -f 'java -jar' || true
           nohup java -jar *.jar > app.log 2>&1 &

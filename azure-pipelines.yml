@@ -1,29 +1,27 @@
 trigger:
-- main   # adjust branch as needed
+- main
 
-# Build stage: Microsoft-hosted agent
 pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-# Step 1: Checkout code
 - checkout: self
 
-# Step 2: Build with Maven
+# Build with Maven (point to JtProject/pom.xml)
 - task: Maven@3
   inputs:
-    mavenPomFile: 'pom.xml'
+    mavenPomFile: 'JtProject/pom.xml'   # 👈 correct path
     goals: 'clean package'
     options: '-DskipTests'
 
-# Step 3: Publish build artifact
+# Publish artifact
 - task: PublishBuildArtifacts@1
   inputs:
-    PathtoPublish: 'target/*.jar'
+    PathtoPublish: 'JtProject/target/*.jar'   # 👈 target folder inside JtProject
     ArtifactName: 'drop'
     publishLocation: 'Container'
 
-# Step 4: Copy artifact to remote Linux server via SSH
+# Copy artifact to remote Linux server
 - task: CopyFilesOverSSH@0
   inputs:
     sshEndpoint: 'Java_YAML'   # 👈 your service connection name
@@ -31,7 +29,7 @@ steps:
     contents: '*.jar'
     targetFolder: '/home/itadmin/javaapp'
 
-# Step 5: Run the app on the remote server
+# Run app on remote server
 - task: SSH@0
   inputs:
     sshEndpoint: 'Java_YAML'

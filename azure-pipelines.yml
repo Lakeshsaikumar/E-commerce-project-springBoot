@@ -10,16 +10,12 @@ stages:
       vmImage: 'ubuntu-latest'   # Microsoft-hosted agent
     steps:
     - checkout: self
-
-    # Build with Maven
     - task: Maven@3
       inputs:
         mavenPomFile: 'JtProject/pom.xml'
         goals: 'clean package'
         options: '-DskipTests'
         workingDirectory: 'JtProject'
-
-    # Publish artifact
     - task: PublishPipelineArtifact@1
       inputs:
         targetPath: 'JtProject/target'
@@ -31,28 +27,23 @@ stages:
   jobs:
   - job: DeployJob
     pool:
-      name: 'Default'   # 👈 your self-hosted agent pool name
-      demands:
-      - agent.os -equals Linux
+      name: 'Default'   # 👈 your self-hosted agent pool
     steps:
-    # Download artifact onto the self-hosted agent
     - task: DownloadPipelineArtifact@2
       inputs:
         artifact: 'drop'
         path: '$(Pipeline.Workspace)/drop'
 
-    # Copy files to remote server via SSH
     - task: CopyFilesOverSSH@0
       inputs:
-        sshEndpoint: 'Java_Development'   # 👈 your SSH service connection name
+        sshEndpoint: 'java_yaml'   # 👈 service connection with private IP
         sourceFolder: '$(Pipeline.Workspace)/drop'
         contents: '*.jar'
         targetFolder: '/home/itadmin/javaapp'
 
-    # Run the app remotely
     - task: SSH@0
       inputs:
-        sshEndpoint: 'Java_Development'
+        sshEndpoint: 'java_yaml'
         runOptions: 'inline'
         inline: |
           cd /home/itadmin/javaapp
